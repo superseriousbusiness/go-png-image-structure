@@ -1,13 +1,9 @@
 package pngstructure
 
 import (
-	"fmt"
+	"os"
 	"path"
 	"testing"
-
-	"io/ioutil"
-
-	"github.com/dsoprea/go-logging"
 )
 
 func TestPngMediaParser_ParseFile(t *testing.T) {
@@ -16,33 +12,21 @@ func TestPngMediaParser_ParseFile(t *testing.T) {
 	pmp := NewPngMediaParser()
 
 	_, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPngMediaParser_LooksLikeFormat(t *testing.T) {
 	filepath := path.Join(assetsPath, "libpng.png")
 
-	data, err := ioutil.ReadFile(filepath)
-	log.PanicIf(err)
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pmp := NewPngMediaParser()
-
 	if pmp.LooksLikeFormat(data) != true {
 		t.Fatalf("not detected as png")
 	}
-}
-
-func ExamplePngMediaParser_LooksLikeFormat() {
-	filepath := path.Join(assetsPath, "libpng.png")
-
-	data, err := ioutil.ReadFile(filepath)
-	log.PanicIf(err)
-
-	pmp := NewPngMediaParser()
-
-	isPng := pmp.LooksLikeFormat(data)
-	fmt.Printf("%v\n", isPng)
-
-	// Output:
-	// true
 }

@@ -1,24 +1,25 @@
 package pngstructure
 
 import (
+	"fmt"
 	"os"
 	"path"
-
-	"github.com/dsoprea/go-logging"
 )
 
 var (
-	assetsPath = ""
+	assetsPath = "assets"
 )
 
-func getModuleRootPath() string {
+func getModuleRootPath() (string, error) {
 	moduleRootPath := os.Getenv("PNG_MODULE_ROOT_PATH")
 	if moduleRootPath != "" {
-		return moduleRootPath
+		return moduleRootPath, nil
 	}
 
 	currentWd, err := os.Getwd()
-	log.PanicIf(err)
+	if err != nil {
+		return "", err
+	}
 
 	currentPath := currentWd
 	visited := make([]string, 0)
@@ -27,8 +28,8 @@ func getModuleRootPath() string {
 		tryStampFilepath := path.Join(currentPath, ".MODULE_ROOT")
 
 		_, err := os.Stat(tryStampFilepath)
-		if err != nil && os.IsNotExist(err) != true {
-			log.Panic(err)
+		if err != nil && !os.IsNotExist(err) {
+			return "", err
 		} else if err == nil {
 			break
 		}
@@ -37,28 +38,40 @@ func getModuleRootPath() string {
 
 		currentPath = path.Dir(currentPath)
 		if currentPath == "/" {
-			log.Panicf("could not find module-root: %v", visited)
+			return "", fmt.Errorf("could not find module-root: %v", visited)
 		}
 	}
 
-	return currentPath
+	return currentPath, nil
 }
 
-func getTestAssetsPath() string {
+func getTestAssetsPath() (string, error) {
 	if assetsPath == "" {
-		moduleRootPath := getModuleRootPath()
+		moduleRootPath, err := getModuleRootPath()
+		if err != nil {
+			return "", err
+		}
+
 		assetsPath = path.Join(moduleRootPath, "assets")
 	}
 
-	return assetsPath
+	return assetsPath, nil
 }
 
-func getTestBasicImageFilepath() string {
-	assetsPath := getTestAssetsPath()
-	return path.Join(assetsPath, "libpng.png")
+func getTestBasicImageFilepath() (string, error) {
+	assetsPath, err := getTestAssetsPath()
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(assetsPath, "libpng.png"), nil
 }
 
-func getTestExifImageFilepath() string {
-	assetsPath := getTestAssetsPath()
-	return path.Join(assetsPath, "exif.png")
+func getTestExifImageFilepath() (string, error) {
+	assetsPath, err := getTestAssetsPath()
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(assetsPath, "exif.png"), nil
 }

@@ -2,16 +2,15 @@ package pngstructure
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"testing"
 
-	"io/ioutil"
-
 	"github.com/dsoprea/go-exif/v3"
-	"github.com/dsoprea/go-exif/v3/common"
-	"github.com/dsoprea/go-logging"
+	exifcommon "github.com/dsoprea/go-exif/v3/common"
 )
 
 func TestChunk_Bytes(t *testing.T) {
@@ -23,7 +22,10 @@ func TestChunk_Bytes(t *testing.T) {
 		Crc:    0x5678,
 	}
 
-	actual := c.Bytes()
+	actual, err := c.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expected := []byte{
 		0x00, 0x00, 0x00, 0x05,
@@ -32,24 +34,9 @@ func TestChunk_Bytes(t *testing.T) {
 		0x00, 0x00, 0x56, 0x78,
 	}
 
-	if bytes.Compare(actual, expected) != 0 {
+	if !bytes.Equal(actual, expected) {
 		t.Fatalf("bytes not correct")
 	}
-}
-
-func ExampleChunk_Bytes() {
-	c := Chunk{
-		Offset: 0,
-		Length: 5,
-		Type:   "ABCD",
-		Data:   []byte{0x11, 0x22, 0x33, 0x44, 0x55},
-		Crc:    0x5678,
-	}
-
-	data := c.Bytes()
-	data = data
-
-	// Output:
 }
 
 func TestChunk_Write(t *testing.T) {
@@ -63,32 +50,18 @@ func TestChunk_Write(t *testing.T) {
 
 	b := new(bytes.Buffer)
 	_, err := c.WriteTo(b)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	expected := c.Bytes()
+	expected, err := c.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if bytes.Compare(b.Bytes(), expected) != 0 {
+	if !bytes.Equal(b.Bytes(), expected) {
 		t.Fatalf("bytes not correct")
 	}
-}
-
-func ExampleChunk_Write() {
-	c := Chunk{
-		Offset: 0,
-		Length: 5,
-		Type:   "ABCD",
-		Data:   []byte{0x11, 0x22, 0x33, 0x44, 0x55},
-		Crc:    0x5678,
-	}
-
-	b := new(bytes.Buffer)
-	_, err := c.WriteTo(b)
-	log.PanicIf(err)
-
-	data := c.Bytes()
-	data = data
-
-	// Output:
 }
 
 func TestChunkSlice_Index(t *testing.T) {
@@ -97,7 +70,9 @@ func TestChunkSlice_Index(t *testing.T) {
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 	index := cs.Index()
@@ -121,79 +96,76 @@ func TestChunkSlice_Index(t *testing.T) {
 }
 
 func TestChunkSlice_FindExif_Miss(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintErrorf(err, "Test failure.")
-		}
-	}()
-
 	filepath := path.Join(assetsPath, "Selection_058.png")
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 	_, err = cs.FindExif()
 
 	if err == nil {
 		t.Fatalf("expected error for missing EXIF")
-	} else if log.Is(err, exif.ErrNoExif) == false {
-		log.Panic(err)
+	} else if !errors.Is(err, exif.ErrNoExif) {
+		t.Fatal(err)
 	}
 }
 
 func TestChunkSlice_FindExif_Hit(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintErrorf(err, "Test failure.")
-		}
-	}()
-
-	testBasicFilepath := getTestBasicImageFilepath()
+	testBasicFilepath, err := getTestBasicImageFilepath()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(testBasicFilepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 
 	exifChunk, err := cs.FindExif()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	exifFilepath := fmt.Sprintf("%s.exif", testBasicFilepath)
 
-	expectedExifData, err := ioutil.ReadFile(exifFilepath)
-	log.PanicIf(err)
+	expectedExifData, err := os.ReadFile(exifFilepath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if bytes.Compare(exifChunk.Data, expectedExifData) != 0 {
+	if !bytes.Equal(exifChunk.Data, expectedExifData) {
 		t.Fatalf("Exif not extract correctly.")
 	}
 }
 
 func TestChunkSlice_Exif(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintErrorf(err, "Test failure.")
-		}
-	}()
-
-	testExifFilepath := getTestExifImageFilepath()
+	testExifFilepath, err := getTestExifImageFilepath()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(testExifFilepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 
 	rootIfd, _, err := cs.Exif()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tags := rootIfd.Entries()
 
@@ -209,60 +181,75 @@ func TestChunkSlice_Exif(t *testing.T) {
 }
 
 func TestChunkSlice_SetExif_Existing(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintErrorf(err, "Test failure.")
-		}
-	}()
-
-	testBasicFilepath := getTestBasicImageFilepath()
+	testBasicFilepath, err := getTestBasicImageFilepath()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Build EXIF.
 
 	im, err := exifcommon.NewIfdMappingWithStandard()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ti := exif.NewTagIndex()
 
 	ib := exif.NewIfdBuilder(im, ti, exifcommon.IfdStandardIfdIdentity, exifcommon.TestDefaultByteOrder)
 
 	err = ib.AddStandardWithName("ImageWidth", []uint32{11})
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = ib.AddStandardWithName("ImageLength", []uint32{22})
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Replace into PNG.
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(testBasicFilepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 
 	err = cs.SetExif(ib)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	b := new(bytes.Buffer)
 
 	err = cs.WriteTo(b)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updatedImageData := b.Bytes()
 
 	// Re-parse.
 
 	intfc, err = pmp.ParseBytes(updatedImageData)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs = intfc.(*ChunkSlice)
 
 	exifChunk, err := cs.FindExif()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	chunkData := exifChunk.Bytes()
+	chunkData, err := exifChunk.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Chunk data length minus length, type, and CRC data.
 	expectedExifLen := len(chunkData) - 4 - 4 - 4
@@ -276,7 +263,9 @@ func TestChunkSlice_SetExif_Existing(t *testing.T) {
 	// The first eight bytes belong to the PNG chunk structure.
 	offset := 8
 	_, index, err := exif.Collect(im, ti, chunkData[offset:offset+expectedExifLen])
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tags := index.RootIfd.Entries()
 
@@ -290,39 +279,48 @@ func TestChunkSlice_SetExif_Existing(t *testing.T) {
 }
 
 func TestChunkSlice_SetExif_Chunk(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintErrorf(err, "Test failure.")
-		}
-	}()
-
 	// Build EXIF.
 
 	im, err := exifcommon.NewIfdMappingWithStandard()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ti := exif.NewTagIndex()
 
 	ib := exif.NewIfdBuilder(im, ti, exifcommon.IfdStandardIfdIdentity, exifcommon.TestDefaultByteOrder)
 
 	err = ib.AddStandardWithName("ImageWidth", []uint32{11})
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = ib.AddStandardWithName("ImageLength", []uint32{22})
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Create PNG.
 
-	cs := NewPngChunkSlice()
+	cs, err := NewPngChunkSlice()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = cs.SetExif(ib)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	exifChunk, err := cs.FindExif()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	chunkData := exifChunk.Bytes()
+	chunkData, err := exifChunk.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Chunk data length minus length, type, and CRC data.
 	expectedExifLen := len(chunkData) - 4 - 4 - 4
@@ -336,7 +334,9 @@ func TestChunkSlice_SetExif_Chunk(t *testing.T) {
 	// The first eight bytes belong to the PNG chunk structure.
 	offset := 8
 	_, index, err := exif.Collect(im, ti, chunkData[offset:offset+expectedExifLen])
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tags := index.RootIfd.Entries()
 
@@ -347,97 +347,6 @@ func TestChunkSlice_SetExif_Chunk(t *testing.T) {
 	} else if tags[1].TagId() != 0x0101 {
 		t.Fatalf("second tag is not correct")
 	}
-}
-
-func ExampleChunkSlice_SetExif() {
-	// Build EXIF.
-
-	testBasicFilepath := getTestBasicImageFilepath()
-
-	im, err := exifcommon.NewIfdMappingWithStandard()
-	log.PanicIf(err)
-
-	ti := exif.NewTagIndex()
-
-	ib := exif.NewIfdBuilder(im, ti, exifcommon.IfdStandardIfdIdentity, exifcommon.TestDefaultByteOrder)
-
-	err = ib.AddStandardWithName("ImageWidth", []uint32{11})
-	log.PanicIf(err)
-
-	err = ib.AddStandardWithName("ImageLength", []uint32{22})
-	log.PanicIf(err)
-
-	// Add/replace EXIF into PNG (overwrite existing).
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(testBasicFilepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	err = cs.SetExif(ib)
-	log.PanicIf(err)
-
-	b := new(bytes.Buffer)
-
-	// Write to a `bytes.Buffer`.
-	err = cs.WriteTo(b)
-	log.PanicIf(err)
-
-	// Output:
-}
-
-func ExampleChunkSlice_Exif() {
-	testExifFilepath := getTestExifImageFilepath()
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(testExifFilepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	rootIfd, _, err := cs.Exif()
-	log.PanicIf(err)
-
-	rootIfd = rootIfd
-
-	// Output:
-}
-
-func ExampleChunkSlice_FindExif() {
-	testBasicFilepath := getTestBasicImageFilepath()
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(testBasicFilepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	exifChunk, err := cs.FindExif()
-	log.PanicIf(err)
-
-	exifChunk = exifChunk
-
-	// Output:
-}
-
-func ExampleChunkSlice_Index() {
-	filepath := path.Join(assetsPath, "Selection_058.png")
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	index := cs.Index()
-	index = index
-
-	// Output:
 }
 
 func TestChunk_Crc32_Cycle(t *testing.T) {
@@ -475,42 +384,50 @@ func TestChunk_Crc32_Cycle(t *testing.T) {
 }
 
 func TestChunkSlice_ConstructExifBuilder(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintErrorf(err, "Test failure.")
-		}
-	}()
-
-	testExifFilepath := getTestExifImageFilepath()
+	testExifFilepath, err := getTestExifImageFilepath()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(testExifFilepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 
 	// Add a new tag to the additional EXIF.
 
 	rootIb, err := cs.ConstructExifBuilder()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = rootIb.SetStandardWithName("ImageLength", []uint32{44})
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = rootIb.AddStandardWithName("BitsPerSample", []uint16{33})
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Update the image.
 
 	err = cs.SetExif(rootIb)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	b := new(bytes.Buffer)
 
 	err = cs.WriteTo(b)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	updatedImageData := b.Bytes()
 
@@ -519,23 +436,33 @@ func TestChunkSlice_ConstructExifBuilder(t *testing.T) {
 	pmp = NewPngMediaParser()
 
 	intfc, err = pmp.ParseBytes(updatedImageData)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs = intfc.(*ChunkSlice)
 
 	rootIfd, _, err := cs.Exif()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tags := rootIfd.Entries()
 
 	v1, err := tags[0].Value()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	v2, err := tags[1].Value()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	v3, err := tags[2].Value()
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if rootIfd.IfdIdentity().Equals(exifcommon.IfdStandardIfdIdentity) != true {
 		t.Fatalf("root-IFD not parsed correctly")
@@ -550,112 +477,35 @@ func TestChunkSlice_ConstructExifBuilder(t *testing.T) {
 	}
 }
 
-func ExampleChunkSlice_ConstructExifBuilder() {
-	testExifFilepath := getTestExifImageFilepath()
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(testExifFilepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	// Add a new tag to the additional EXIF.
-
-	rootIb, err := cs.ConstructExifBuilder()
-	log.PanicIf(err)
-
-	err = rootIb.SetStandardWithName("ImageLength", []uint32{44})
-	log.PanicIf(err)
-
-	err = rootIb.AddStandardWithName("BitsPerSample", []uint16{33})
-	log.PanicIf(err)
-
-	// Update the image.
-
-	err = cs.SetExif(rootIb)
-	log.PanicIf(err)
-
-	b := new(bytes.Buffer)
-
-	err = cs.WriteTo(b)
-	log.PanicIf(err)
-
-	updatedImageData := b.Bytes()
-
-	// Re-parse.
-
-	pmp = NewPngMediaParser()
-
-	intfc, err = pmp.ParseBytes(updatedImageData)
-	log.PanicIf(err)
-
-	cs = intfc.(*ChunkSlice)
-
-	rootIfd, _, err := cs.Exif()
-	log.PanicIf(err)
-
-	for i, ite := range rootIfd.Entries() {
-		value, err := ite.Value()
-		log.PanicIf(err)
-
-		fmt.Printf("%d: (0x%04x) %v\n", i, ite.TagId(), value)
-	}
-
-	// Output:
-	// 0: (0x0100) [11]
-	// 1: (0x0101) [44]
-	// 2: (0x0102) [33]
-}
-
 func TestPngSplitter_Write(t *testing.T) {
-	defer func() {
-		if state := recover(); state != nil {
-			err := log.Wrap(state.(error))
-			log.PrintError(err)
-		}
-	}()
-
 	filepath := path.Join(assetsPath, "Selection_058.png")
 
-	original, err := ioutil.ReadFile(filepath)
-	log.PanicIf(err)
+	original, err := os.ReadFile(filepath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseBytes(original)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 
 	b := new(bytes.Buffer)
 
 	err = cs.WriteTo(b)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	written := b.Bytes()
 
-	if bytes.Compare(written, original) != 0 {
+	if !bytes.Equal(written, original) {
 		t.Fatalf("written bytes (%d) do not equal read bytes (%d)", len(written), len(original))
 	}
-}
-
-func ExampleChunkSlice_Write() {
-	filepath := path.Join(assetsPath, "Selection_058.png")
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	b := new(bytes.Buffer)
-
-	err = cs.WriteTo(b)
-	log.PanicIf(err)
-
-	// Output:
 }
 
 func TestChunkSlice_Write(t *testing.T) {
@@ -674,10 +524,14 @@ func TestChunkSlice_Write(t *testing.T) {
 	b := new(bytes.Buffer)
 
 	_, err := b.Write(PngSignature[:])
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = b.Write(chunkData)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	originalFull := make([]byte, len(b.Bytes()))
 	copy(originalFull, b.Bytes())
@@ -687,7 +541,9 @@ func TestChunkSlice_Write(t *testing.T) {
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.Parse(br, len(b.Bytes()))
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
 
@@ -699,11 +555,13 @@ func TestChunkSlice_Write(t *testing.T) {
 	b2 := new(bytes.Buffer)
 
 	err = cs.WriteTo(b2)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	actual := b2.Bytes()
 
-	if bytes.Compare(actual, originalFull) != 0 {
+	if !bytes.Equal(actual, originalFull) {
 		fmt.Printf("ACTUAL:\n")
 		DumpBytesClause(actual)
 

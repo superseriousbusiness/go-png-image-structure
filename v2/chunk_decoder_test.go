@@ -3,32 +3,37 @@ package pngstructure
 import (
 	"path"
 	"testing"
-
-	"github.com/dsoprea/go-logging"
 )
 
 func TestChunkDecoder_decodeIHDR(t *testing.T) {
-	assetsPath := getTestAssetsPath()
+	assetsPath, err := getTestAssetsPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	filepath := path.Join(assetsPath, "Selection_058.png")
 
 	pmp := NewPngMediaParser()
 
 	intfc, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cs := intfc.(*ChunkSlice)
-
 	index := cs.Index()
-	ihdrRawSlice, found := index["IHDR"]
 
-	if found != true {
+	ihdrRawSlice, found := index["IHDR"]
+	if !found {
 		t.Fatalf("Could not find IHDR chunk.")
 	}
 
 	cd := NewChunkDecoder()
 
 	ihdrRaw, err := cd.Decode(ihdrRawSlice[0])
-	log.PanicIf(err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ihdr := ihdrRaw.(*ChunkIHDR)
 
@@ -45,30 +50,4 @@ func TestChunkDecoder_decodeIHDR(t *testing.T) {
 	if *ihdr != *expected {
 		t.Fatalf("ihdr not correct")
 	}
-}
-
-func ExampleChunkDecoder_Decode() {
-	filepath := path.Join(assetsPath, "Selection_058.png")
-
-	pmp := NewPngMediaParser()
-
-	intfc, err := pmp.ParseFile(filepath)
-	log.PanicIf(err)
-
-	cs := intfc.(*ChunkSlice)
-
-	index := cs.Index()
-	ihdrRawSlice, found := index["IHDR"]
-
-	if found != true {
-		log.Panicf("IHDR chunk not found")
-	}
-
-	cd := NewChunkDecoder()
-
-	ihdrRaw, err := cd.Decode(ihdrRawSlice[0])
-	log.PanicIf(err)
-
-	ihdr := ihdrRaw.(*ChunkIHDR)
-	ihdr = ihdr
 }

@@ -1,4 +1,4 @@
-module github.com/dsoprea/go-png-image-structure/v2
+module github.com/superseriousbusiness/go-png-image-structure/v2
 
 go 1.12
 

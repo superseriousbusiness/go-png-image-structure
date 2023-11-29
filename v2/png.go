@@ -252,24 +252,11 @@ func (c *Chunk) Bytes() ([]byte, error) {
 	preallocated := make([]byte, 0, 4+4+c.Length+4)
 	b := bytes.NewBuffer(preallocated)
 
-	err := binary.Write(b, binary.BigEndian, c.Length)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := b.Write([]byte(c.Type)); err != nil {
-		return nil, err
-	}
-
-	if c.Data != nil {
-		if _, err := b.Write(c.Data); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := binary.Write(b, binary.BigEndian, c.Crc); err != nil {
-		return nil, err
-	}
+	// Writes to buffer never return an error.
+	_ = binary.Write(b, binary.BigEndian, c.Length)
+	_, _ = b.WriteString(c.Type)
+	_, _ = b.Write(c.Data)
+	_ = binary.Write(b, binary.BigEndian, c.Crc)
 
 	return b.Bytes(), nil
 }
@@ -284,7 +271,7 @@ func (c *Chunk) WriteTo(w io.Writer) (int, error) {
 		return 0, err
 	}
 
-	if _, err := w.Write([]byte(c.Type)); err != nil {
+	if _, err := io.WriteString(w, c.Type); err != nil {
 		return 0, err
 	}
 
